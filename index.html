@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>WhatsApp Auth Test (No SDK)</title>
+  <style>
+    body {
+      font-family: Arial;
+      background: #0f172a;
+      color: white;
+      padding: 40px;
+    }
+    input, button {
+      padding: 10px;
+      margin: 10px 0;
+      width: 300px;
+    }
+    button {
+      background: #22c55e;
+      border: none;
+      color: white;
+      cursor: pointer;
+    }
+    pre {
+      background: #1e293b;
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🚀 WhatsApp Auth Test (Inline SDK)</h1>
+
+<input id="apiKey" placeholder="Enter API Key" />
+<br>
+
+<input id="phone" placeholder="Enter Phone (+91...)" />
+<br>
+
+<button onclick="login()">Login with WhatsApp</button>
+
+<h3>Status:</h3>
+<pre id="status">Idle...</pre>
+
+<script>
+const API_URL = "https://waapi.mishraverse.me";
+
+function log(msg) {
+  document.getElementById("status").innerText = msg;
+  console.log(msg);
+}
+
+async function login() {
+  const apiKey = document.getElementById("apiKey").value;
+  const phone = document.getElementById("phone").value;
+
+  try {
+    log("⚡ Creating session...");
+
+    // STEP 1: Create session
+    const res = await fetch(API_URL + "/v1/auth/whatsapp", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey
+      },
+      body: JSON.stringify({
+        phone: phone,
+        platform: "web"
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "API failed");
+    }
+
+    log("📲 Opening WhatsApp...");
+
+    // STEP 2: Open WhatsApp
+    window.location.href = data.whatsapp_link;
+
+    // STEP 3: Poll for verification
+    pollStatus(data.session_id, apiKey);
+
+  } catch (err) {
+    log("❌ ERROR: " + err.message);
+  }
+}
+
+async function pollStatus(sessionId, apiKey) {
+  log("⏳ Waiting for verification...");
+
+  const interval = setInterval(async () => {
+    try {
+      const res = await fetch(API_URL + "/v1/auth/status/" + sessionId, {
+        headers: {
+          "x-api-key": apiKey
+        }
+      });
+
+      const data = await res.json();
+
+      if (data.status === "verified") {
+        clearInterval(interval);
+        log("✅ SUCCESS:\n" + JSON.stringify(data, null, 2));
+      }
+
+    } catch (err) {
+      clearInterval(interval);
+      log("🔥 Polling Failed: " + err.message);
+    }
+  }, 3000);
+}
+</script>
+
+</body>
+</html>
